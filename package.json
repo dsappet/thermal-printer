@@ -1,0 +1,25 @@
+{
+  "name": "thermal-printer",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@abandonware/noble": "^1.9.2-25",
+    "@point-of-sale/receipt-printer-encoder": "^3.0.0",
+    "escpos": "^3.0.0-alpha.6",
+    "escpos-usb": "^3.0.0-alpha.4",
+    "iconv-lite": "^0.6.3",
+    "jsdom": "^25.0.1",
+    "node-bluetooth": "^1.2.6",
+    "sharp": "^0.33.5",
+    "usb": "^2.14.0"
+  }
+}

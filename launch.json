@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug with Bun",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/bluetooth.ts",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run"],
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal"
+    }
+  ]
+}
