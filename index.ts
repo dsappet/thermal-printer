@@ -69,157 +69,6 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function writeChunked(
-  characteristic: noble.Characteristic,
-  data: Buffer
-) {
-  console.log(
-    `Writing chunked data, num chunks: ${Math.ceil(data.length / CHUNK_SIZE)}`
-  );
-  for (let i = 0; i < data.length; i += CHUNK_SIZE) {
-    //console.log(i, CHUNK_SIZE, data.length);
-    const chunk = data.slice(i, i + CHUNK_SIZE);
-    await characteristic.writeAsync(chunk, false);
-    await delay(DELAY_BETWEEN_CHUNKS);
-    // console.log(`Wrote chunk ${i} of ${Math.ceil(data.length / CHUNK_SIZE)}`);
-  }
-  console.log("Done writing chunked data");
-}
-
-async function sendCommand(characteristic, command) {
-  await characteristic.writeAsync(Buffer.from(command), false);
-  await delay(DELAY_BETWEEN_CHUNKS); // Small delay after each command
-}
-
-async function printQRCode(data, characteristic) {
-  try {
-    await sendCommand(characteristic, PRINTER_COMMANDS.INIT);
-    await sendCommand(characteristic, PRINTER_COMMANDS.JUSTIFY_CENTER);
-
-    // QR Code function
-    const qrCommand = [
-      ...PRINTER_COMMANDS.QR_CODE,
-      4, // pL
-      0, // pH
-      49, // cn (49 = QR Code)
-      65, // fn (65 = Select model)
-      50, // m (50 = model 2)
-      0, // d1..dk = NULL (auto-select smallest size)
-    ];
-    await sendCommand(characteristic, qrCommand);
-
-    // QR Code size
-    const size = Math.min(8, Math.floor((IMG_WIDTH - 10) / 24)); // Max 8 or what fits the width
-    const sizeCommand = [
-      ...PRINTER_COMMANDS.QR_CODE,
-      3, // pL
-      0, // pH
-      49, // cn
-      67, // fn (67 = Set module size)
-      size, // Size (1-8)
-    ];
-    await sendCommand(characteristic, sizeCommand);
-
-    // QR Code data
-    const dataBuffer = Buffer.from(data);
-    const dataCommand = [
-      ...PRINTER_COMMANDS.QR_CODE,
-      dataBuffer.length + 3, // pL
-      0, // pH
-      49, // cn
-      80, // fn (80 = Store symbol data in memory)
-      48, // m (48 = Auto-increment memory address)
-      ...dataBuffer,
-    ];
-    await sendCommand(characteristic, dataCommand);
-
-    // Print QR Code
-    const printCommand = [
-      ...PRINTER_COMMANDS.QR_CODE,
-      3, // pL
-      0, // pH
-      49, // cn
-      81, // fn (81 = Print symbol data in memory)
-      48, // m (48 = Auto-increment memory address)
-    ];
-    await sendCommand(characteristic, printCommand);
-
-    await sendCommand(characteristic, [
-      ...PRINTER_COMMANDS.PRINT_AND_FEED,
-      0x04,
-    ]);
-    await sendCommand(characteristic, PRINTER_COMMANDS.FOOTER);
-  } catch (error) {
-    console.error("Error in printQRCode:", error);
-    throw error;
-  }
-}
-
-// STILL DOESN"T WORK
-async function printText(text, characteristic) {
-  try {
-    await sendCommand(characteristic, PRINTER_COMMANDS.INIT);
-    await sendCommand(characteristic, PRINTER_COMMANDS.TEXT_MODE);
-    await sendCommand(characteristic, PRINTER_COMMANDS.LINE_SPACING);
-    await sendCommand(characteristic, PRINTER_COMMANDS.JUSTIFY_LEFT);
-
-    const textBuffer = Buffer.from(text + "\n");
-    await characteristic.writeAsync(textBuffer, false);
-
-    await sendCommand(characteristic, [
-      ...PRINTER_COMMANDS.PRINT_AND_FEED,
-      0x04,
-    ]);
-    await sendCommand(characteristic, PRINTER_COMMANDS.FOOTER);
-  } catch (error) {
-    console.error("Error in printText:", error);
-    throw error;
-  }
-}
-
-async function printTextImage(text, characteristic) {
-  const printData = [];
-
-  // Header
-  printData.push(...PRINTER_COMMANDS.INIT, ...PRINTER_COMMANDS.JUSTIFY_CENTER);
-
-  const textImage = await renderTextToImage(text, true);
-
-  const { data, info } = textImage;
-  const { width, height } = info;
-
-  // Print raster bit image command
-  printData.push(
-    ...PRINTER_COMMANDS.PRINT_RASTER,
-    width / 8,
-    0x00,
-    height & 0xff,
-    (height >> 8) & 0xff
-  );
-
-  // Add image data
-  for (let y = 0; y < height; y++) {
-    const lineBuffer = new Uint8Array(width / 8);
-    for (let x = 0; x < width; x++) {
-      if (data[y * width + x] === 0) {
-        lineBuffer[Math.floor(x / 8)] |= 0x80 >> x % 8;
-      }
-    }
-    printData.push(...lineBuffer);
-  }
-
-  // Footer
-  printData.push(
-    ...PRINTER_COMMANDS.PRINT_AND_FEED,
-    0x02,
-    ...PRINTER_COMMANDS.PRINT_AND_FEED,
-    0x02,
-    ...PRINTER_COMMANDS.FOOTER
-  );
-
-  // Send data to printer in chunks
-  await writeChunked(characteristic, printData);
-}
 
 async function processImage(imagePath: string) {
   try {
@@ -255,6 +104,7 @@ async function printImage(
 
     console.log(`Processed image size: ${width}x${height}`);
 
+    // Initialize the printer
     await characteristic.writeAsync(
       Buffer.from([
         ...PRINTER_COMMANDS.INIT,
@@ -264,31 +114,17 @@ async function printImage(
       false
     );
 
-    // const HEADER = Buffer.concat([INITIALIZE, JUSTIFY_CENTER, Buffer.from([0x1f, 0x11, 0x02, 0x04])]);
-
     // GS v 0 - Print raster image - same as PRINTER_COMMANDS.PRINT_RASTER
     const GSV0 = Buffer.from([0x1d, 0x76, 0x30, 0x00]);
 
-    const lineHeight = 40; // line height for the phomemo
     const IMAGE_WIDTH_BYTES = width / 8;
 
-    const rasterHeader = [
-      ...PRINTER_COMMANDS.PRINT_RASTER,
-      width / 8, // Bytes per line (Image width in bytes)
-      0x00, //
-      // height & 0xff, // Number of lines to print in this block. // height & 0xff
-      lineHeight, //height - 1, //(height >> 8) & 0xff, // 0
-      0x00,
-    ];
-
-    // The header requires
+    // The raster header (block marker) requires
     // Print Raster
     // Bytes per line
     // 0
     // Number of lines to print in this block.
     // 0
-
-    // await characteristic.writeAsync(Buffer.from(rasterHeader), false); // this one wasn't needed
 
     for (let startIndex = 0; startIndex < info.height; startIndex += 256) {
       const endIndex = Math.min(startIndex + 256, info.height);
@@ -317,6 +153,7 @@ async function printImage(
           }
           // 0x0a breaks the rendering
           // 0x0a alone is processed like LineFeed by the printer
+          // so change it to something close
           if (byte === 0x0a) {
             byte = 0x14;
           }
@@ -327,13 +164,6 @@ async function printImage(
     }
     await characteristic.writeAsync(Buffer.from(data), false);
 
-    // await writeChunked(
-    //   characteristic,
-    //   Buffer.from([
-    //     ...PRINTER_COMMANDS.PRINT_AND_FEED,
-    //     0x04,
-    //   ...PRINTER_COMMANDS.FOOTER,
-    // ]));
     await characteristic.writeAsync(
       Buffer.from([
         ...PRINTER_COMMANDS.PRINT_AND_FEED,
@@ -343,14 +173,6 @@ async function printImage(
       false
     );
 
-    // await characteristic.writeAsync(
-    //   Buffer.from([
-    //     ...PRINTER_COMMANDS.PRINT_AND_FEED,
-    //     0x04,
-    //     ...PRINTER_COMMANDS.FOOTER,
-    //   ]),
-    //   false
-    // );
   } catch (error) {
     console.error("Error in printImage:", error);
     throw error;
