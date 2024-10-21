@@ -1,9 +1,10 @@
 import noble from "@abandonware/noble";
 import sharp from "sharp";
-import { renderTextToImage } from "./helpers/htmlToImage";
-
+// import { renderTextToImage } from "./helpers/htmlToImage";
+import { connectToPrinter } from "./bluetooth";
+import { generateImage } from "./openai";
 const IMG_WIDTH = 384; // 48 bytes * 8 bits (384 pixels wide)
-const DITHER_THRESHOLD = 100;
+const DITHER_THRESHOLD = 128; // 50/50 threshold for dithering
 const CHUNK_SIZE = 128; // Send data in smaller chunks
 const DELAY_BETWEEN_CHUNKS = 150; // Milliseconds to wait between chunks
 const PRINTER_DPI = 203;
@@ -29,48 +30,11 @@ const PRINTER_COMMANDS = {
   QR_CODE: [0x1d, 0x28, 0x6b], // GS ( k
 };
 
-async function connectToPrinter() {
-  return new Promise((resolve, reject) => {
-    noble.on("stateChange", async (state) => {
-      if (state === "poweredOn") {
-        console.log("Scanning for printer...");
-        await noble.startScanningAsync([], false);
-      }
-    });
-
-    noble.on("discover", async (peripheral) => {
-      if (peripheral.advertisement.localName === "M02L") {
-        await noble.stopScanningAsync();
-        try {
-          await peripheral.connectAsync();
-          console.log("Connected successfully!");
-
-          const services = await peripheral.discoverServicesAsync([]);
-          const characteristics =
-            await services[0].discoverCharacteristicsAsync([]);
-          const writeCharacteristic = characteristics.find((c) =>
-            c.properties.includes("write")
-          );
-
-          if (writeCharacteristic) {
-            resolve({ peripheral, writeCharacteristic });
-          } else {
-            reject(new Error("No writable characteristic found"));
-          }
-        } catch (error) {
-          reject(error);
-        }
-      }
-    });
-  });
-}
-
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-
-async function processImage(imagePath: string) {
+async function processImage(imagePath: string | Buffer) {
   try {
     const image = await sharp(imagePath)
       .resize(IMG_WIDTH, null, {
@@ -95,11 +59,11 @@ async function processImage(imagePath: string) {
 }
 
 async function printImage(
-  imagePath: string,
+  image: string | Buffer,
   characteristic: noble.Characteristic
 ) {
   try {
-    const { data, info } = await processImage(imagePath);
+    const { data, info } = await processImage(image);
     const { width, height } = info;
 
     console.log(`Processed image size: ${width}x${height}`);
@@ -172,7 +136,6 @@ async function printImage(
       ]),
       false
     );
-
   } catch (error) {
     console.error("Error in printImage:", error);
     throw error;
@@ -181,21 +144,16 @@ async function printImage(
 
 async function main() {
   try {
-    const { peripheral, writeCharacteristic } = await connectToPrinter();
+    // const { peripheral, writeCharacteristic } = await connectToPrinter();
+    // await printImage("images/jellybean-unicorn.jpg", writeCharacteristic);
+    console.log("Generating image...");
+    const imageBuffer = await generateImage(
+      "a fun coloring book page featuring a baby unicorn jellybean"
+      //   // "A cartoon style coloring book page, low complexity, very simplistic, easy for kids to color in, using only bold black and white outlines, whimsical theme, always child appropriate: a mermaid unicorn princess"
+      //   "A low complexity black and white coloring book page with thick simplistic and smooth lines creating a whimsical and fun image of the following for a child to color: A mermaid unicorn princess"
+    );
+    // await printImage(imageBuffer, writeCharacteristic);
 
-    // Print text
-    // await printTextImage("Hello, Phomemo M02!", writeCharacteristic);
-    // console.log("Text printed successfully");
-    // await printText("Hello, Phomemo M02!", writeCharacteristic);
-    // console.log("Text printed successfully");
-
-    // Print QR Code
-    // await printQRCode("Hello, QR Code!", writeCharacteristic);
-    // console.log("QR Code printed successfully");
-
-    // Print image (replace 'path/to/your/image.png' with an actual image path)
-    await printImage("test.jpg", writeCharacteristic);
-    // await printImage("hello.png", writeCharacteristic);
     console.log("Image printed successfully");
 
     console.log("Press Enter to continue...");
