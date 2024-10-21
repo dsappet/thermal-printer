@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises";
-import { savePastebinImage } from "./helpers/pastebin";
+import { savePastebinImage } from "../helpers/pastebin";
 
 async function main() {
   try {
