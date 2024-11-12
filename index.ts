@@ -1,55 +1,33 @@
 import noble from "@abandonware/noble";
+import ReceiptPrinterEncoder from "@point-of-sale/receipt-printer-encoder";
 import sharp from "sharp";
+import pixels from "image-pixels";
+
 // import { renderTextToImage } from "./helpers/htmlToImage";
 import { connectToPrinter } from "./bluetooth";
 import { generateImage } from "./openai";
-const IMG_WIDTH = 384; // 48 bytes * 8 bits (384 pixels wide)
-const DITHER_THRESHOLD = 128; // 50/50 threshold for dithering
-const CHUNK_SIZE = 128; // Send data in smaller chunks
-const DELAY_BETWEEN_CHUNKS = 150; // Milliseconds to wait between chunks
-const PRINTER_DPI = 203;
-const PRINTER_WIDTH_INCHES = 1.89; // 48mm in inches
-const BYTES_PER_LINE = IMG_WIDTH / 8;
 
-const PRINTER_COMMANDS = {
-  INIT: Buffer.from([0x1b, 0x40]),
-  JUSTIFY_CENTER: Buffer.from([0x1b, 0x61, 0x01]),
-  JUSTIFY_LEFT: Buffer.from([0x1b, 0x61, 0x00]),
-  PRINT_RASTER: Buffer.from([0x1d, 0x76, 0x30, 0x00]), // the last value is Mode: 0=normal, 1=double width, 2=double height, 3=quadruple
-  PRINT_AND_FEED: Buffer.from([0x1b, 0x64]),
-  FOOTER: Buffer.from([
-    0x1f, 0x11, 0x08, 0x1f, 0x11, 0x0e, 0x1f, 0x11, 0x07, 0x1f, 0x11, 0x09,
-  ]),
-  SET_DENSITY: [0x1d, 0x21, 0x08], // GS ! [density] density is 0-8 with 8 being darkest
-  TEXT_SIZE: [0x1d, 0x21], // GS ! command for character size
-  // LINE_SPACING: [0x1b, 0x33], // ESC 3 command for line spacing
-  TEXT_MODE: [0x1b, 0x21, 0x00], // Standard text mode
-  LINE_SPACING: [0x1b, 0x33, 0x24], // Set line spacing to 36 dots
-  // ALIGN_CENTER: [0x1b, 0x61, 0x01],
-  // ALIGN_LEFT: [0x1b, 0x61, 0x00],
-  QR_CODE: [0x1d, 0x28, 0x6b], // GS ( k
-};
+// 48 characters/columns (bytes) wide is the wide format 80mm paper
+// 32 characters/columns (bytes) wide is the standard format 57mm paper
+const IMG_WIDTH = 256; // 32* 8bits // 384(this is full width); // 48 bytes * 8 bits (384 pixels wide)
 
-function delay(ms) {
+function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function processImage(imagePath: string | Buffer) {
   try {
     const image = await sharp(imagePath)
-      .resize(IMG_WIDTH, null, {
+      .resize(IMG_WIDTH, IMG_WIDTH, {
         fit: "contain",
-        // background: { r: 0, g: 0, b: 0, alpha: 0 },
+        withoutEnlargement: true,
       })
-      // .sharpen()
-      .grayscale()
-      .normalize()
-      // .linear(1.1, -(255 * 0.1))
-      // .blur(0.3)
-      // .threshold(DITHER_THRESHOLD)
-      .trim() // This will remove the white space
-      .raw()
+      // .trim() // This will remove the white space
       .toBuffer({ resolveWithObject: true });
+
+    // Now use a library that does a better job getting the right raw output
+    const pixelsOut = await pixels(image.data);
+    image.data = pixelsOut.data;
 
     return image;
   } catch (error) {
@@ -68,74 +46,31 @@ async function printImage(
 
     console.log(`Processed image size: ${width}x${height}`);
 
-    // Initialize the printer
-    await characteristic.writeAsync(
-      Buffer.from([
-        ...PRINTER_COMMANDS.INIT,
-        ...PRINTER_COMMANDS.JUSTIFY_CENTER,
-        ...PRINTER_COMMANDS.SET_DENSITY,
-      ]),
-      false
-    );
+    const encoder = new ReceiptPrinterEncoder({
+      columns: 32, // 384 pixels / 8 dots per byte = 48 columns
+      // feedBeforeCut: 2,
+      imageMode: "raster",
+    });
 
-    // GS v 0 - Print raster image - same as PRINTER_COMMANDS.PRINT_RASTER
-    const GSV0 = Buffer.from([0x1d, 0x76, 0x30, 0x00]);
+    const printData = encoder
+      .initialize()
+      .raw([0x1b, 0x61, 0x02]) // Right align - this doesn't work
+      .image({ data, width, height }, info.width, info.height, "atkinson")
+      // .newline(4) // this doesn't seem to work
+      // .raw([0x1b, 0x64, 0x04]) // 4 new lines
+      .encode();
 
-    const IMAGE_WIDTH_BYTES = width / 8;
+    await characteristic.writeAsync(Buffer.from(printData), false);
 
-    // The raster header (block marker) requires
-    // Print Raster
-    // Bytes per line
-    // 0
-    // Number of lines to print in this block.
-    // 0
+    // For some reason we need to send a ton of zeros. Equal to half the buffer sent
+    const bufferSize = Math.floor(printData.length / 2);
+    const buffer = Buffer.alloc(bufferSize, 0x00);
 
-    for (let startIndex = 0; startIndex < info.height; startIndex += 256) {
-      const endIndex = Math.min(startIndex + 256, info.height);
-      const lineHeight = endIndex - startIndex;
+    // const printTwo = encoder.image({ data, width, height }, info.width, info.height, "atkinson").encode();
+    await characteristic.writeAsync(Buffer.from(buffer), false);
 
-      const BLOCK_MARKER = Buffer.concat([
-        GSV0,
-        Buffer.from([IMAGE_WIDTH_BYTES, 0x00, lineHeight - 1, 0x00]),
-      ]);
-      await characteristic.writeAsync(BLOCK_MARKER, false);
-
-      for (
-        let imageLineIndex = 0;
-        imageLineIndex < lineHeight;
-        imageLineIndex++
-      ) {
-        let imageLine = Buffer.alloc(0);
-        for (let byteStart = 0; byteStart < info.width / 8; byteStart++) {
-          let byte = 0;
-          for (let bit = 0; bit < 8; bit++) {
-            const pixelIndex =
-              (imageLineIndex + startIndex) * info.width + byteStart * 8 + bit;
-            if (data[pixelIndex] === 0) {
-              byte |= 1 << (7 - bit);
-            }
-          }
-          // 0x0a breaks the rendering
-          // 0x0a alone is processed like LineFeed by the printer
-          // so change it to something close
-          if (byte === 0x0a) {
-            byte = 0x14;
-          }
-          imageLine = Buffer.concat([imageLine, Buffer.from([byte])]);
-        }
-        await characteristic.writeAsync(imageLine, false);
-      }
-    }
-    await characteristic.writeAsync(Buffer.from(data), false);
-
-    await characteristic.writeAsync(
-      Buffer.from([
-        ...PRINTER_COMMANDS.PRINT_AND_FEED,
-        0x04,
-        ...PRINTER_COMMANDS.FOOTER,
-      ]),
-      false
-    );
+    // send 6 newlines
+    await characteristic.writeAsync(Buffer.from([0x1b, 0x64, 0x06]), false);
   } catch (error) {
     console.error("Error in printImage:", error);
     throw error;
@@ -144,15 +79,18 @@ async function printImage(
 
 async function main() {
   try {
-    // const { peripheral, writeCharacteristic } = await connectToPrinter();
-    // await printImage("images/jellybean-unicorn.jpg", writeCharacteristic);
-    console.log("Generating image...");
-    const imageBuffer = await generateImage(
-      "a fun coloring book page featuring a baby unicorn jellybean"
-      //   // "A cartoon style coloring book page, low complexity, very simplistic, easy for kids to color in, using only bold black and white outlines, whimsical theme, always child appropriate: a mermaid unicorn princess"
-      //   "A low complexity black and white coloring book page with thick simplistic and smooth lines creating a whimsical and fun image of the following for a child to color: A mermaid unicorn princess"
-    );
-    // await printImage(imageBuffer, writeCharacteristic);
+    const { peripheral, writeCharacteristic, readCharacteristic } =
+      await connectToPrinter();
+
+    readCharacteristic.on("data", (d) => {
+      console.log("OMG I GOT SOMETHING", d);
+    });
+
+    writeCharacteristic.on("data", (d) => {
+      console.log("OMG I GOT SOMETHING", d);
+    });
+
+    await printImage("images/jellybean-unicorn.jpg", writeCharacteristic);
 
     console.log("Image printed successfully");
 
