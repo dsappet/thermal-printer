@@ -1,3 +1,5 @@
+import { watch } from "fs/promises";
+
 import noble from "@abandonware/noble";
 import ReceiptPrinterEncoder from "@point-of-sale/receipt-printer-encoder";
 import sharp from "sharp";
@@ -69,8 +71,9 @@ async function printImage(
     // const printTwo = encoder.image({ data, width, height }, info.width, info.height, "atkinson").encode();
     await characteristic.writeAsync(Buffer.from(buffer), false);
 
-    // send 6 newlines
-    await characteristic.writeAsync(Buffer.from([0x1b, 0x64, 0x06]), false);
+    // send 6 newlines - for some reason I can't do 6 at once, need to be two blocks
+    await characteristic.writeAsync(Buffer.from([0x1b, 0x64, 0x04]), false);
+    await characteristic.writeAsync(Buffer.from([0x1b, 0x64, 0x02]), false);
   } catch (error) {
     console.error("Error in printImage:", error);
     throw error;
@@ -90,16 +93,35 @@ async function main() {
       console.log("OMG I GOT SOMETHING", d);
     });
 
-    await printImage("images/jellybean-unicorn.jpg", writeCharacteristic);
+    const WATCH_FOLDER = false;
+    const PRINT_SINGLE = true;
+    if (PRINT_SINGLE) {
+      await printImage("images/dog-owl.jpeg", writeCharacteristic);
+    }
 
-    console.log("Image printed successfully");
+    if (WATCH_FOLDER) {
+      // Watch the images folder for new images, then print them
+      console.log("Watching for new files in the ./images folder...");
+      const watcher = watch(import.meta.dir + "/images");
+      for await (const event of watcher) {
+        console.log(`Detected ${event.eventType} in ${event.filename}`);
+        if (
+        event.filename?.includes(".jpg") ||
+        event.filename?.includes(".png") ||
+        event.filename?.includes(".jpeg")
+      ) {
+          await printImage(`images/${event.filename}`, writeCharacteristic);
+          console.log("Image printed successfully");
+        }
+      }
+    }
 
-    console.log("Press Enter to continue...");
-    await new Promise((resolve) => {
-      process.stdin.once("data", () => {
-        resolve();
-      });
-    });
+    // console.log("Press Enter to continue...");
+    // await new Promise((resolve) => {
+    //   process.stdin.once("data", () => {
+    //     resolve();
+    //   });
+    // });
 
     await peripheral.disconnectAsync();
     console.log("Disconnected from printer");

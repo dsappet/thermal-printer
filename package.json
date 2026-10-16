@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@abandonware/noble": "^1.9.2-25",
+    "@napi-rs/canvas": "^1.0.11",
     "@point-of-sale/receipt-printer-encoder": "^3.0.2",
     "escpos": "^3.0.0-alpha.6",
     "escpos-usb": "^3.0.0-alpha.4",
