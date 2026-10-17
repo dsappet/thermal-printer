@@ -116,3 +116,25 @@ Raster data: MSB-first, 1 = black, 0 = white, each row exactly 48 bytes.
 - Density: `1F 11 02 04` — the `04` may be a heat/density level (M02X uses `02`). Worth trying 01–05 to see if the print gets darker/lighter.
 - `02 B6 00` on connect and `1A 09 0C` reply to `1F 11 0E` are undecoded.
 - M02_NO_RESPONSE mode could be made safe by pacing (e.g. ~15 ms per chunk ≈ 12 KB/s), but with-response is simpler and only ~2x slower.
+| 2026-10-16 | Bundle JetBrains Mono v2.304 (SIL OFL) in `fonts/`, register via `GlobalFonts.registerFromPath`, make it the default text font | Works; verified the bundled file is what resolves (alias measures 48 px vs 63.7 px for a fallback). Ligatures turn `=>` into ⇒ and `<>` into ◇, so the NL (no-ligature) variant is bundled too as "JetBrains Mono NL". This Mac also has JetBrains Mono installed system-wide, so `GlobalFonts.has()` alone is not proof the bundle is used. |
+
+## Text rendering options (research, 2026-10-16)
+
+Real ESC/POS printers have 12x24 / 9x17 bitmap fonts in ROM; the M02 has none, so text is host-rendered. Choices:
+
+| approach | deps | portability | notes |
+|---|---|---|---|
+| `@napi-rs/canvas` + bundled TTF (**current**) | native prebuilt | Node/Bun, not browser | easy, good quality, measureText for wrapping |
+| embedded bitmap font (8x16 / 12x24) | none | everywhere | ESC/POS look, integer scaling only |
+| opentype.js + own rasterizer | pure JS | everywhere | more work |
+| satori (+ satori-html) → SVG → sharp | pure JS + sharp | Node/Bun; browser with resvg-wasm | **HTML mode**: flexbox CSS subset, text emitted as paths, fonts passed in explicitly (bundled TTF works) |
+| Playwright/Puppeteer | Chromium | heavy | full HTML fidelity, bad fit for a library |
+
+Plan for the library: dependency-free core (bytes, packing, status, transport interface) + optional renderers (image via sharp, html/text via satori) + transports (noble, Web Bluetooth).
+| 2026-10-16 | Refactor into a library (`src/`): dependency-free protocol/bitmap/Printer core, Document builder, renderers, noble + Web Bluetooth transports | Typechecks. `webbluetooth` npm package (Web Bluetooth API for Node) was tried for Bun but its 7.x tarball is broken (`dist/index.js` requires a missing `./uuid`), and Doug wants noble for non-web anyway, so: Web Bluetooth standard in browsers, noble in Bun/Node. |
+| 2026-10-16 | Bring-your-own-connection: `connect({ device: peripheral })` wrapping a noble peripheral the caller connected | Status works through it; `printer.disconnect()` leaves the peripheral connected (owns=false); the same peripheral can be wrapped a second time; caller disconnects. Web Bluetooth equivalent (`device` / `gatt` server) typechecks, untested in a browser yet. |
+| 2026-10-16 | Units API: text `size` presets + `columns`, lengths as px/%/mm, Document rendered at `printer.width` | Demo (xl heading, columns:32 table, 66% image, 10%-margin rule, 4mm space) rendered 384x743 and printed: 196 chunks acked, complete at 8.1 s. |
+| 2026-10-16 | Bug: word wrap collapsed runs of spaces, so a `columns: 32` table lost its alignment | Fixed: wrapper keeps whitespace tokens, only trims at wrap points. 32-column receipt table printed aligned (384x120, 32 acks). |
+| 2026-10-16 | Auto power-off research | Phomemo docs only mention an adjustable shutdown time for the M02 Pro (app → Manage Devices). `1F 11 0E` is described as a "device timer" query; ours answers 12 — possibly the timer in minutes. The write opcode is undocumented and probing past 0x14 has bricked a unit, so not attempted. Added `printer.keepAlive(ms)` + `onDisconnect()`. Experiment: phase B 20 min with a battery query every 60 s → **still on**; phase A 20 min silent open connection, no traffic → **still on**. Conclusion: the idle timer only runs while nothing is connected; just staying connected keeps the M02 awake, keep-alive traffic is unnecessary. Battery reached 100% on a proper charger during the run. |
+| 2026-10-16 | Battery stuck at 41% "all day on the charger" | Not charging: the charge LED was off on a USB-C laptop charger. A plain phone charger made the charge LED blink immediately. Use a basic 5 V / 2 A USB-A adapter (Phomemo's own guidance). Note the gauge reported a flat 41% through 16+ minutes of keep-alive ticks, so it may only re-sample on power-cycle. |
+| 2026-10-16 | Idle power-off time after disconnect, printer on a working charger | Scanned for its advertisement for 26 min after disconnecting: **never went away**. So on real external power the M02 does not auto-off (at least not within 26 min). Doug's "turns off even when plugged in" happened on the laptop charger that was delivering nothing, i.e. effectively on battery. Open: measure the on-battery timeout (unplug, disconnect, scan) to see if it matches the 12 from `1F 11 0E`. |

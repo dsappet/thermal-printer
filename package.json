@@ -1,12 +1,14 @@
 {
   "name": "thermal-printer",
-  "module": "index.ts",
+  "module": "src/index.ts",
   "type": "module",
   "scripts": {
-    "dev": "bun index.ts"
+    "dev": "bun m02.ts",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/web-bluetooth": "^0.0.21"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -24,5 +26,17 @@
     "openai": "^4.68.1",
     "sharp": "^0.33.5",
     "usb": "^2.14.0"
-  }
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./web": "./src/web.ts",
+    "./core": "./src/core.ts"
+  },
+  "files": [
+    "src",
+    "fonts",
+    "m02.ts",
+    "README.md",
+    "M02-NOTES.md"
+  ]
 }
