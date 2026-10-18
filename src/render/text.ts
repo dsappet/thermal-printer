@@ -2,8 +2,8 @@
 import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import type { Align, Bitmap } from "../bitmap";
-import { type FontSizeSpec, type Length, REFERENCE_WIDTH, resolveFontSize, resolveLength } from "../units";
+import type { Align, Bitmap } from "../bitmap.js";
+import { type FontSizeSpec, type Length, REFERENCE_WIDTH, resolveFontSize, resolveLength } from "../units.js";
 
 const FONT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "fonts");
 

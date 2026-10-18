@@ -1,7 +1,7 @@
 /** Image file/buffer → bitmap using sharp. */
 import sharp from "sharp";
-import { type Align, type Bitmap, ditherFloydSteinberg, placeInWidth, threshold } from "../bitmap";
-import { type Length, resolveLength } from "../units";
+import { type Align, type Bitmap, ditherFloydSteinberg, placeInWidth, threshold } from "../bitmap.js";
+import { type Length, resolveLength } from "../units.js";
 
 export interface ImageOptions {
   /** Target width: px, "50%" of the page, or "30mm". Default: full page width. */

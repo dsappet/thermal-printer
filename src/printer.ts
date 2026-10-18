@@ -1,6 +1,6 @@
 /** Printer: a transport plus the job/status logic. */
-import type { Bitmap } from "./bitmap";
-import { M02, type Model, type Notification, QUERY, buildJob, decodeNotification, feedBytes, queryBytes } from "./protocol";
+import type { Bitmap } from "./bitmap.js";
+import { M02, type Model, type Notification, QUERY, buildJob, decodeNotification, feedBytes, queryBytes } from "./protocol.js";
 
 /** Anything that can move bytes to the printer and deliver its notifications. */
 export interface Transport {

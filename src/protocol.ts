@@ -2,7 +2,7 @@
  * Phomemo M02 wire protocol. Pure functions, no dependencies, no I/O.
  * See M02-NOTES.md for where every byte comes from.
  */
-import type { Bitmap } from "./bitmap";
+import type { Bitmap } from "./bitmap.js";
 
 export interface Model {
   name: string;

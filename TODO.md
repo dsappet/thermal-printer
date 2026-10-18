@@ -1,38 +1,28 @@
 # Roadmap
 
-Transports: Web Bluetooth standard in the browser, noble for Bun/Node (decided 2026-10-16).
+Transports: Web Bluetooth standard in the browser, noble for Bun/Node 
 
 Goal: a reusable library for the Phomemo M02 (and siblings) that renders everything to
 raster on the host. JetBrains Mono (bundled, `fonts/`) is the font everywhere.
 
-## 1. High-level API (now)
 
-- [x] Library layout under `src/`: `protocol` (bytes, packing, status; no deps), `bitmap`,
-      `render/text`, `render/image`, `document`, `transport/noble`, `printer`, `index`
-- [x] `Document` builder: `.text()` with default word wrap, `.newline(n)` / `.feed(n)`,
-      `.image()` (fit + dither + align), `.rule()` divider, `.space(px)`
-- [x] `Printer` class: `connect()`, `print(doc | bitmap | string)`, `status()` → parsed object,
-      `feed(n)`, `disconnect()`; waits for the printer's print-complete frame
-- [x] `m02.ts` CLI rebuilt on the library (`text`, `image`, `status`, `--preview`)
-- [x] README usage for the API
-- [x] `connect({ device })` accepts a user-managed noble peripheral / Web Bluetooth device or server / Transport, and leaves it connected
-- [x] Sizes and units: text presets (`xs`..`xxl`) and `columns`, lengths as px / `%` / `mm`, page width resolved at print time from `printer.width`
-- [x] Package metadata so it can be imported from other projects (`exports`, name)
+# Stories
 
-## 2. Next
-
-- [ ] Browser-side text/image rendering (DOM canvas with the bundled TTF via FontFace, or satori)
-
-- [ ] HTML mode: satori (+ satori-html) → SVG → sharp, using the bundled TTFs; replaces
-      canvas for text so text has no native dependency
-- [x] Web Bluetooth transport so the same core runs in a browser
+- [ ] GitHub Action to publish to npm on release (typecheck, test, build, `npm publish --provenance`)
+- [ ] **Demo website** (not published to npm): a static `demo/` page with a "Connect" button
+      using `pocket-printer/web`, a textarea, an image picker and a canvas preview. Serve with any
+      static server over `localhost` (Web Bluetooth needs a secure context). Also the place
+      to verify the browser transport, which has only been typechecked so far.
+- [ ] Bring your own fonts. Be able to load custom font files from a user.
+- [ ] Browser-side text/image rendering (DOM canvas with the bundled TTF via `FontFace`, or satori),
+      so the demo can print text without a server
+- [ ] Auto-detect the model from the advertised name (M02 Pro / M03 → 576, M02S → 512) and widen
+      discovery to the `ff00` service instead of a name list, so any Phomemo is found
+- [ ] HTML mode: Raster a rendered HTML 
 - [ ] Density / quality: try the `1F 11 02 NN` byte, dither choices, calibration strip
-- [ ] Watch-folder auto-print (port from `index.ts`) and `ai` command via `openai.ts`
-- [x] `keepAlive()` + `onDisconnect()`; verified a silent open connection alone keeps the printer on (40 min test)
 - [ ] Reconnect / retry on BLE drop; MTU detection instead of the fixed 182-byte chunk
-- [ ] Publish (npm or git dependency), remove the old `index.ts` / `test.ts` experiments
 
-## 3. Last: fully compliant ESC/POS emulation
+- [ ] Fully compliant ESC/POS emulation
 
 Accept a raw ESC/POS byte stream (e.g. from `receipt-printer-encoder`) and render it to
 raster, so any ESC/POS library can target the M02 unchanged.
@@ -49,4 +39,4 @@ raster, so any ESC/POS library can target the M02 unchanged.
 - [ ] Tables / columns come from the ESC/POS library (they are just spaces); verify with
       `receipt-printer-encoder` `.table()`
 - [ ] Unknown commands: consume parameters and skip, never corrupt the stream
-- [ ] `bun m02.ts escpos <file | ->` entry point and a round-trip test
+- [ ] `pocket-printer escpos <file | ->` entry point and a round-trip test

@@ -3,10 +3,10 @@
  * it at the printer's width, or call `render(width)` yourself (e.g. for a preview).
  * Everything becomes raster because the M02 can't do anything else.
  */
-import { type Bitmap, blank, stack } from "./bitmap";
-import { type ImageOptions, renderImage } from "./render/image";
-import { type TextOptions, lineHeightPx, renderText } from "./render/text";
-import { type Length, REFERENCE_WIDTH, resolveLength } from "./units";
+import { type Bitmap, blank, stack } from "./bitmap.js";
+import { type ImageOptions, renderImage } from "./render/image.js";
+import { type TextOptions, lineHeightPx, renderText } from "./render/text.js";
+import { type Length, REFERENCE_WIDTH, resolveLength } from "./units.js";
 
 type Block = (pageWidth: number) => Promise<Bitmap> | Bitmap;
 

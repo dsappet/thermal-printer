@@ -1,8 +1,9 @@
+/// <reference types="web-bluetooth" />
 /**
  * Web Bluetooth transport for browsers (Chrome/Edge/Android; not Safari/Firefox).
  * requestDevice() must be called from a user gesture (click).
  */
-import type { Transport } from "../printer";
+import type { Transport } from "../printer.js";
 
 const SERVICE_UUID = 0xff00;
 const WRITE_UUID = 0xff02;

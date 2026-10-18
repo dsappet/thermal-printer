@@ -1,6 +1,6 @@
 /** BLE transport for Bun/Node via @abandonware/noble. */
 import noble from "@abandonware/noble";
-import type { Transport } from "../printer";
+import type { Transport } from "../printer.js";
 
 const WRITE_UUID = "ff02";
 const NOTIFY_UUIDS = ["ff03", "ff01"];

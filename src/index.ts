@@ -1,29 +1,30 @@
-export { Document, doc, type DocumentOptions } from "./document";
-export { Printer, type Printable, type PrinterOptions, type Status, type Transport } from "./printer";
+/// <reference types="web-bluetooth" />
+export { Document, doc, type DocumentOptions } from "./document.js";
+export { Printer, type Printable, type PrinterOptions, type Status, type Transport } from "./printer.js";
 export {
   connectNoble,
   findNoblePeripheral,
   nobleTransport,
   type NobleOptions,
   type NobleTransportOptions,
-} from "./transport/noble";
+} from "./transport/noble.js";
 export {
   connectWeb,
   requestWebDevice,
   webTransport,
   type WebBluetoothOptions,
   type WebTransportOptions,
-} from "./transport/web";
-export { renderText, wrapText, FONT, FONT_NL, type TextOptions } from "./render/text";
-export { renderImage, bitmapToPng, type ImageOptions } from "./render/image";
-export * from "./bitmap";
-export * from "./protocol";
-export * from "./units";
+} from "./transport/web.js";
+export { renderText, wrapText, FONT, FONT_NL, type TextOptions } from "./render/text.js";
+export { renderImage, bitmapToPng, type ImageOptions } from "./render/image.js";
+export * from "./bitmap.js";
+export * from "./protocol.js";
+export * from "./units.js";
 
 import type noble from "@abandonware/noble";
-import { Printer, type PrinterOptions, type Transport } from "./printer";
-import type { NobleOptions } from "./transport/noble";
-import { connectWeb, webTransport, type WebBluetoothOptions } from "./transport/web";
+import { Printer, type PrinterOptions, type Transport } from "./printer.js";
+import type { NobleOptions } from "./transport/noble.js";
+import { connectWeb, webTransport, type WebBluetoothOptions } from "./transport/web.js";
 
 /** A connection you already hold: a noble peripheral, a Web Bluetooth device/server, or a Transport. */
 export type DeviceHandle = noble.Peripheral | BluetoothDevice | BluetoothRemoteGATTServer | Transport;
@@ -56,7 +57,7 @@ function isWebHandle(h: DeviceHandle): h is BluetoothDevice | BluetoothRemoteGAT
 export async function transportFrom(handle: DeviceHandle, opts: ConnectOptions = {}): Promise<Transport> {
   if (isTransport(handle)) return handle;
   if (isWebHandle(handle)) return webTransport(handle, opts);
-  const { nobleTransport } = await import("./transport/noble");
+  const { nobleTransport } = await import("./transport/noble.js");
   return nobleTransport(handle as noble.Peripheral, opts);
 }
 
@@ -73,7 +74,7 @@ export async function connect(opts: ConnectOptions = {}): Promise<Printer> {
   } else {
     const which = opts.transport ?? (isWebBluetooth() ? "web" : "noble");
     transport =
-      which === "web" ? await connectWeb(opts) : await (await import("./transport/noble")).connectNoble(opts);
+      which === "web" ? await connectWeb(opts) : await (await import("./transport/noble.js")).connectNoble(opts);
   }
   return new Printer(transport, opts);
 }

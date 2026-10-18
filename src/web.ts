@@ -1,22 +1,23 @@
+/// <reference types="web-bluetooth" />
 /**
  * Browser entry point: protocol + bitmaps + Printer + Web Bluetooth transport.
  * No noble, no sharp, no @napi-rs/canvas. Rendering text/images in the browser is on the
  * roadmap (DOM canvas or satori); until then pass pre-rendered bitmaps.
  */
-export * from "./bitmap";
-export * from "./protocol";
-export * from "./units";
-export { Printer, type Printable, type PrinterOptions, type Status, type Transport } from "./printer";
+export * from "./bitmap.js";
+export * from "./protocol.js";
+export * from "./units.js";
+export { Printer, type Printable, type PrinterOptions, type Status, type Transport } from "./printer.js";
 export {
   connectWeb,
   requestWebDevice,
   webTransport,
   type WebBluetoothOptions,
   type WebTransportOptions,
-} from "./transport/web";
+} from "./transport/web.js";
 
-import { Printer, type PrinterOptions, type Transport } from "./printer";
-import { connectWeb, webTransport, type WebBluetoothOptions } from "./transport/web";
+import { Printer, type PrinterOptions, type Transport } from "./printer.js";
+import { connectWeb, webTransport, type WebBluetoothOptions } from "./transport/web.js";
 
 export type WebConnectOptions = WebBluetoothOptions &
   PrinterOptions & {

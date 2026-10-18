@@ -1,42 +1,87 @@
 {
-  "name": "thermal-printer",
-  "module": "src/index.ts",
+  "name": "pocket-printer",
+  "version": "0.1.0",
+  "description": "Print text and images to pocket Bluetooth thermal printers (Phomemo M02 family and other ESC/POS raster printers) from Node, Bun or the browser. Everything is rendered to raster on the host with a bundled JetBrains Mono font.",
+  "license": "MIT",
+  "author": "Doug Sappet",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dsappet/thermal-printer.git"
+  },
+  "homepage": "https://github.com/dsappet/thermal-printer#readme",
+  "bugs": "https://github.com/dsappet/thermal-printer/issues",
+  "keywords": [
+    "pocket-printer",
+    "thermal-printer",
+    "receipt-printer",
+    "thermal",
+    "receipt",
+    "reciept",
+    "printer",
+    "phomemo",
+    "m02",
+    "bluetooth",
+    "ble",
+    "web-bluetooth",
+    "noble",
+    "escpos",
+    "raster"
+  ],
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./web": {
+      "types": "./dist/web.d.ts",
+      "import": "./dist/web.js"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "pocket-printer": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "fonts",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": [
+    "./dist/render/text.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "dev": "bun m02.ts",
-    "typecheck": "tsc --noEmit"
+    "dev": "bun src/cli.ts",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:hardware": "POCKET_HARDWARE=1 bun test test/hardware.test.ts",
+    "prepublishOnly": "bun run typecheck && bun test && bun run build"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.11",
+    "@types/web-bluetooth": "^0.0.21",
+    "sharp": "^0.33.5"
+  },
+  "optionalDependencies": {
+    "@abandonware/noble": "^1.9.2-25"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/web-bluetooth": "^0.0.21"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "dependencies": {
-    "@abandonware/noble": "^1.9.2-25",
-    "@napi-rs/canvas": "^1.0.11",
-    "@point-of-sale/receipt-printer-encoder": "^3.0.2",
-    "escpos": "^3.0.0-alpha.6",
-    "escpos-usb": "^3.0.0-alpha.4",
-    "iconv-lite": "^0.6.3",
-    "image-pixels": "^2.2.2",
-    "jsdom": "^25.0.1",
-    "node-bluetooth": "^1.2.6",
-    "openai": "^4.68.1",
-    "sharp": "^0.33.5",
-    "usb": "^2.14.0"
-  },
-  "exports": {
-    ".": "./src/index.ts",
-    "./web": "./src/web.ts",
-    "./core": "./src/core.ts"
-  },
-  "files": [
-    "src",
-    "fonts",
-    "m02.ts",
-    "README.md",
-    "M02-NOTES.md"
-  ]
+    "typescript": "^5.6.0"
+  }
 }
