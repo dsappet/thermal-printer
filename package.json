@@ -6,10 +6,10 @@
   "author": "Doug Sappet",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dsappet/thermal-printer.git"
+    "url": "git+https://github.com/dsappet/pocket-printer.git"
   },
-  "homepage": "https://github.com/dsappet/thermal-printer#readme",
-  "bugs": "https://github.com/dsappet/thermal-printer/issues",
+  "homepage": "https://github.com/dsappet/pocket-printer#readme",
+  "bugs": "https://github.com/dsappet/pocket-printer/issues",
   "keywords": [
     "pocket-printer",
     "thermal-printer",
