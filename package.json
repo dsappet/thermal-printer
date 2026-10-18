@@ -47,7 +47,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "pocket-printer": "./dist/cli.js"
+    "pocket-printer": "dist/cli.js"
   },
   "files": [
     "dist",
