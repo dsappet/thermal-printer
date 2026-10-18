@@ -1,5 +1,8 @@
 # pocket-printer
 
+[![npm version](https://img.shields.io/npm/v/pocket-printer)](https://www.npmjs.com/package/pocket-printer)
+[![license](https://img.shields.io/npm/l/pocket-printer)](./LICENSE)
+
 Do you have a kids "inkless" thermal printer? Brands like Phomemo, models like M02, T02, etc
 This library is for you! 
 
